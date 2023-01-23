@@ -1,5 +1,4 @@
 import os
-from idlelib.configdialog import is_int
 from string import ascii_letters
 
 
@@ -41,7 +40,7 @@ class FileController:
             if data[-1] != self.file_format:
                 return False
 
-            if not is_int(data[0]):
+            if not data[0].isdigit():
                 return False
 
             return True
