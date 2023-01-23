@@ -71,11 +71,6 @@ class NewsRatingRead(BaseModel):
         orm_mode = True
 
 
-class FileRead(BaseModel):
-    file_format: str
-    content: bytes
-
-
 class NewsRead(BaseModel):
     id: int
 
@@ -90,10 +85,13 @@ class NewsRead(BaseModel):
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
-    image: Optional[FileRead]
-
     class Config:
         orm_mode = True
+
+
+class NewsPatchScheme(BaseModel):
+    title: Optional[str]
+    context: Optional[str]
 
 
 class NewsPostScheme(BaseModel):

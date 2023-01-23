@@ -1,5 +1,5 @@
-import base64
 import os
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, Body, Query
 from fastapi_pagination.limit_offset import LimitOffsetPage, LimitOffsetParams
@@ -12,7 +12,7 @@ from starlette.responses import FileResponse
 from config import get_settings
 from controllers.user_controller import current_active_user
 from db import get_async_session, News, Comment, NewsRating, User, NewsFile
-from routers.schemas import NewsRead, NewsPostScheme, FileRead, NewsRatingRead
+from routers.schemas import NewsRead, NewsPostScheme, NewsRatingRead, NewsPatchScheme
 
 router = APIRouter(
     prefix="/news",
@@ -20,14 +20,25 @@ router = APIRouter(
 )
 
 
-def get_file_scheme(url: str) -> FileRead:
+async def save_file(file: UploadFile):
+    settings = get_settings()
+
+    file_path = settings.IMAGE_CONTROLLER.get_filename()
+
     try:
-        with open(url, 'rb') as file_content:
-            file = FileRead(file_format=get_settings().IMAGE_CONTROLLER.file_format,
-                            content=base64.b64encode(file_content.read()))
-        return file
-    except FileNotFoundError:
-        raise HTTPException(500, detail='server miss news files')
+        with open(file_path, 'wb') as new_file:
+            counter = 0
+            while content := await file.read(1024 * 1024):
+                counter += 1
+                if counter > settings.MAX_FILE_SIZE:
+                    raise Exception(f'file size more than {settings.MAX_FILE_SIZE} Mb')
+                new_file.write(content)
+
+    except Exception as error:
+        os.remove(file_path)
+        raise HTTPException(500, detail=f'saving image error: {error}')
+
+    return file_path
 
 
 @router.get('/by_id/{news_id}/rating')
@@ -45,7 +56,7 @@ async def get_news_rating(news_id: int | None = None, session: AsyncSession = De
     return await get_output(news.id)
 
 
-@router.patch('by_id/{news_id}/rating/set/{positive}', response_model=NewsRatingRead)
+@router.patch('/by_id/{news_id}/rating/set/{positive}', response_model=NewsRatingRead)
 async def add_news_rating(news_id: int, positive: bool, session: AsyncSession = Depends(get_async_session),
                           current_user: User = Depends(current_active_user)):
     news = await session.get(News, news_id)
@@ -81,8 +92,6 @@ async def get_news_by_id(news_id: int, session: AsyncSession = Depends(get_async
 
     news.rating_value = await get_news_rating(session=session, news=news)
 
-    if news.file:
-        news.image = get_file_scheme(news.file.file_path)
     return NewsRead.from_orm(news)
 
 
@@ -103,11 +112,6 @@ async def get_all_news(limit: int = Query(default=50, lt=101, gt=0),
     for news in data.items:
         news.rating_value = await get_news_rating(session=session, news=news)
 
-        request = select(NewsFile).where(NewsFile.news_id == news.id)
-        file: NewsFile | None = (await session.execute(request)).scalars().first()
-
-        if file is not None:
-            news.image = get_file_scheme(file.file_path)
     return data
 
 
@@ -130,29 +134,13 @@ async def post_news(post_data: NewsPostScheme = Body(), file: UploadFile | None 
         if file_format != settings.IMAGE_CONTROLLER.file_format:
             raise HTTPException(400, detail='wrong image format')
 
-        filepath = settings.IMAGE_CONTROLLER.get_filename()
+        file_path = await save_file(file)
 
-        try:
-            with open(filepath, 'wb') as save_file:
-                counter = 0
-                while content := await file.read(1024 * 1024):
-                    counter += 1
-                    if counter > settings.MAX_FILE_SIZE:
-                        save_file.close()
-                        os.remove(filepath)
-                        raise HTTPException(400, detail=f'file size more than {settings.MAX_FILE_SIZE} Mb')
-                    save_file.write(content)
-
-        except Exception as error:
-            os.remove(filepath)
-            raise HTTPException(500, detail=f'saving image error: {error}')
-
-        file = NewsFile(news_id=news.id, file_format=settings.IMAGE_CONTROLLER.file_format, file_path=filepath)
+        file = NewsFile(news_id=news.id, file_format=settings.IMAGE_CONTROLLER.file_format, file_path=file_path)
         session.add(file)
         await session.commit()
 
         news.rating_value = 0
-        news.image = get_file_scheme(file.file_path)
 
     return NewsRead.from_orm(news)
 
@@ -168,8 +156,9 @@ async def get_new_image(news_id: int, session: AsyncSession = Depends(get_async_
     return FileResponse(image.file_path)
 
 
-@router.patch('/{news_id}', status_code=202)
-async def patch_news_by_id(news_id: int, patch_data: NewsPostScheme = Depends(),
+@router.patch('/{news_id}', response_model=NewsRead)
+async def patch_news_by_id(news_id: int, file: UploadFile | None = None,
+                           patch_data: NewsPatchScheme | None = Body(default=None),
                            session: AsyncSession = Depends(get_async_session),
                            current_user: User = Depends(current_active_user)):
     if not current_user.is_superuser:
@@ -180,10 +169,60 @@ async def patch_news_by_id(news_id: int, patch_data: NewsPostScheme = Depends(),
     if news is None:
         raise HTTPException(404, detail=f'no news with id {news_id}')
 
-    data = patch_data.dict()
-    for key in data:
-        setattr(news, key, data[key])
+    if patch_data is not None:
+        data = patch_data.dict()
+        for key in data:
+            setattr(news, key, data[key])
 
-    session.add(news)
-    await session.commit()
-    await session.refresh(news)
+        session.add(news)
+        await session.commit()
+        await session.refresh(news)
+
+    if file is not None:
+        file_path = await save_file(file)
+
+        request = select(NewsFile).where(NewsFile.news_id == news.id)
+        news_file: NewsFile | None = (await session.execute(request)).scalars().first()
+
+        if news_file is not None:
+            os.remove(news_file.file_path)
+            news_file.file_path = file_path
+        else:
+            news_file = NewsFile(news_id=news.id, file_path=file_path,
+                                 file_format=get_settings().IMAGE_CONTROLLER.file_format)
+
+        session.add(news_file)
+        await session.commit()
+        await session.refresh(news_file)
+
+    return NewsRead.from_orm(news)
+
+
+@router.delete('/{news_id}', status_code=204)
+async def delete_news(news_id: int, session: AsyncSession = Depends(get_async_session),
+                      current_user: User = Depends(current_active_user)):
+    if not current_user.is_superuser:
+        raise HTTPException(403, detail=f'user {current_user.id} is not a superuser')
+
+    news: News | None = await session.get(News, news_id, options=(
+        selectinload(News.comments),
+        selectinload(News.author),
+        selectinload(News.file),
+        selectinload(News.comments, Comment.author),
+    ))
+
+    if news is None:
+        raise HTTPException(404, detail=f'no news with id {news_id}')
+
+    if news.file and os.path.exists(news.file.file_path):
+        os.remove(news.file.file_path)
+        await session.delete(news.file)
+
+    for comment in news.comments:
+        await session.delete(comment)
+
+    request = select(NewsRating).where(NewsRating.news_id == news.id)
+    for rating in (await session.execute(request)).scalars().all():
+        await session.delete(rating)
+
+    await session.delete(news)
