@@ -15,10 +15,10 @@ services:
     image: adminer
     restart: always
     ports:
-      - "${ALEMBIC_PORT}:${ALEMBIC_PORT}"
+      - "${ADMINER_PORT}:${ADMINER_PORT}"
     command:
       - 'php'
       - '-S'
-      - '[::]:${ALEMBIC_PORT}'
+      - '[::]:${ADMINER_PORT}'
       - '-t'
       - '/var/www/html'

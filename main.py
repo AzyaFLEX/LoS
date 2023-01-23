@@ -1,6 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_pagination import add_pagination
 
 from config import get_settings
 from routers.schemas import UserRead, UserCreate, UserUpdate
@@ -54,6 +55,8 @@ def get_application(settings) -> FastAPI:
 
     for router in routers:
         application.include_router(router)
+
+    add_pagination(application)
 
     return application
 
