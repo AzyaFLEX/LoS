@@ -11,7 +11,7 @@ from routers import __all__ as routers
 
 def get_application(settings) -> FastAPI:
     origins = [
-        'https://legacyofsothorys.ru/'
+        'https://legacyofsothorys.ru'
     ]
 
     application = FastAPI(
@@ -25,7 +25,7 @@ def get_application(settings) -> FastAPI:
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST"],  # remove "OPTIONS"
+        allow_methods=["GET", "POST", "DELETE", "PATCH"],  # remove "OPTIONS"
         allow_headers=["Content-Type", "Set-Cookie"],
     )
 
