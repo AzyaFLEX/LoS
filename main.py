@@ -11,7 +11,7 @@ from routers import __all__ as routers
 
 def get_application(settings) -> FastAPI:
     origins = [
-        'legacyofsothorys.ru'
+        'https://legacyofsothorys.ru/'
     ]
 
     application = FastAPI(
