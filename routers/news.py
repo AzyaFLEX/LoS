@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, Body, Query
 from fastapi_pagination.limit_offset import LimitOffsetPage, LimitOffsetParams
@@ -164,7 +163,12 @@ async def patch_news_by_id(news_id: int, file: UploadFile | None = None,
     if not current_user.is_superuser:
         raise HTTPException(403, detail=f'user {current_user.id} is not a superuser')
 
-    news: News | None = await session.get(News, news_id)
+    news: News | None = await session.get(News, news_id, options=(
+        selectinload(News.comments),
+        selectinload(News.author),
+        selectinload(News.file),
+        selectinload(News.comments, Comment.author),
+    ))
 
     if news is None:
         raise HTTPException(404, detail=f'no news with id {news_id}')
