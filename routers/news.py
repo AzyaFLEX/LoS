@@ -1,3 +1,4 @@
+import datetime
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, Body, Query
@@ -160,6 +161,8 @@ async def patch_news_by_id(news_id: int, file: UploadFile | None = None,
                            patch_data: NewsPatchScheme | None = Body(default=None),
                            session: AsyncSession = Depends(get_async_session),
                            current_user: User = Depends(current_active_user)):
+    updated = False
+
     if not current_user.is_superuser:
         raise HTTPException(403, detail=f'user {current_user.id} is not a superuser')
 
@@ -174,6 +177,7 @@ async def patch_news_by_id(news_id: int, file: UploadFile | None = None,
         raise HTTPException(404, detail=f'no news with id {news_id}')
 
     if patch_data is not None:
+        updated = True
         data = patch_data.dict()
         for key in data:
             setattr(news, key, data[key])
@@ -183,6 +187,7 @@ async def patch_news_by_id(news_id: int, file: UploadFile | None = None,
         await session.refresh(news)
 
     if file is not None:
+        updated = True
         file_path = await save_file(file)
 
         request = select(NewsFile).where(NewsFile.news_id == news.id)
@@ -198,6 +203,12 @@ async def patch_news_by_id(news_id: int, file: UploadFile | None = None,
         session.add(news_file)
         await session.commit()
         await session.refresh(news_file)
+
+    if updated:
+        news.updated_at = datetime.datetime.now()
+        session.add(news)
+        await session.commit()
+        await session.refresh(news)
 
     return NewsRead.from_orm(news)
 
