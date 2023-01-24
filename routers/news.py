@@ -1,3 +1,4 @@
+import base64
 import datetime
 import os
 
@@ -146,7 +147,7 @@ async def post_news(post_data: NewsPostScheme = Body(), file: UploadFile | None 
 
 
 @router.get('/{news_id}/image', response_class=FileResponse)
-async def get_new_image(news_id: int, session: AsyncSession = Depends(get_async_session)):
+async def get_news_image(news_id: int, session: AsyncSession = Depends(get_async_session)):
     request = select(NewsFile).where(NewsFile.news_id == news_id)
     image: NewsFile | None = (await session.execute(request)).scalars().first()
 
@@ -154,6 +155,23 @@ async def get_new_image(news_id: int, session: AsyncSession = Depends(get_async_
         raise HTTPException(404, detail=f'no image found')
 
     return FileResponse(image.file_path)
+
+
+@router.get('/{news_id}/image/base64')
+async def get_news_image_base64(news_id: int, session: AsyncSession = Depends(get_async_session)):
+    request = select(NewsFile).where(NewsFile.news_id == news_id)
+    news_file: NewsFile | None = (await session.execute(request)).scalars().first()
+
+    if news_file is None:
+        raise HTTPException(404, detail=f'server miss news {news_id} files')
+
+    try:
+        with open(news_file.file_path, 'rb') as file_content:
+            content: str = base64.b64encode(file_content.read())
+    except FileNotFoundError:
+        raise HTTPException(500, detail=f'server founded news file in db but miss {news_file.file_path}')
+
+    return content
 
 
 @router.patch('/{news_id}', response_model=NewsRead)
