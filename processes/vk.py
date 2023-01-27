@@ -28,7 +28,7 @@ def get_load_vk_data() -> dict:
 
     if data.status_code == 200 and 'response' in json:
         return json['response']
-    raise ProcessesManagerError(json)
+    raise ProcessesManagerError(f'get_load_vk_data: {json}')
 
 
 def get_long_poll_data() -> dict:
@@ -45,7 +45,7 @@ def get_long_poll_data() -> dict:
 
     if data.status_code == 200 and 'response' in json:
         return json['response']
-    raise ProcessesManagerError(json)
+    raise ProcessesManagerError(f'get_long_poll_data: {json}')
 
 
 def get_long_poll_changes(data: dict, time: int) -> dict:
@@ -55,7 +55,7 @@ def get_long_poll_changes(data: dict, time: int) -> dict:
     if response.status_code == 200 and 'ts' in json and 'updates' in json:
         data['ts'] = json['ts']
         return json['updates']
-    raise ProcessesManagerError(json)
+    raise ProcessesManagerError(f'get_long_poll_changes: {json}')
 
 
 def vk_process(connection: Queue):
