@@ -50,6 +50,31 @@ class UserShortRead(BaseModel):
         orm_mode = True
 
 
+class TestSchemeRead(BaseModel):
+    file_format: str
+    file_path: str
+
+    class Config:
+        orm_mode = True
+
+
+class VkNewsRead(BaseModel):
+    title: str
+    content: Optional[str]
+    image_url: Optional[str]
+
+    class Config:
+        orm_mode = True
+
+
+class VkNewsReadList(BaseModel):
+    count: int
+    items: Optional[List[VkNewsRead]]
+
+    class Config:
+        orm_mode = True
+
+
 class CommentShortRead(BaseModel):
     author: UserShortRead
 

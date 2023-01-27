@@ -54,7 +54,7 @@ class Settings(BaseSettings):
 
     SQLALCHEMY_URL: Optional[PostgresDsn] = None
 
-    IMAGE_CONTROLLER = Field(default=FileController('files'))
+    CODE_IMAGE_CONTROLLER: FileController = Field(default=FileController('files/code'))
 
     @validator('SQLALCHEMY_URL', pre=True)
     def get_sqlalchemy_url(cls, v, values):

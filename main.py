@@ -1,12 +1,16 @@
+from multiprocessing import Process, Queue
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_pagination import add_pagination
 
 from config import get_settings
-from routers.schemas import UserRead, UserCreate, UserUpdate
 from controllers.user_controller import fastapi_users, auth_backend
+from processes import __all__ as all_processes
+from processes.processes_manager import get_processes_manager
 from routers import __all__ as routers
+from routers.schemas import UserRead, UserCreate, UserUpdate
 
 
 def get_application(settings) -> FastAPI:
@@ -61,8 +65,7 @@ def get_application(settings) -> FastAPI:
     return application
 
 
-if __name__ == '__main__':
-    settings = get_settings()
+def run_application(settings):
     app = get_application(settings)
 
     server_data = {
@@ -74,3 +77,15 @@ if __name__ == '__main__':
         server_data.update(settings.SSL_DATA)
 
     uvicorn.run(app, **server_data)
+
+
+if __name__ == '__main__':
+    queue = Queue()
+    processes_manager = get_processes_manager()
+    processes_manager.VK_PROCESS_QUEUE = queue
+
+    for process in all_processes:
+        new_process = Process(target=process, args=(queue, ))
+        new_process.start()
+
+    run_application(get_settings())

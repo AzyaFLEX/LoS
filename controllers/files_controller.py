@@ -55,7 +55,7 @@ class FileController:
             path = f'{self.directory}/{path}'
 
         if not os.path.isdir(path):
-            os.mkdir(path)
+            os.makedirs(path)
 
     def next_dir(self) -> str:
         def check_prev_dir(data):
@@ -78,11 +78,15 @@ class FileController:
 
         return '/'.join(directories)
 
+    def __get_file_path(self):
+        return f'{self.directory}/{self.current_path}/{str(self.current_file_index).rjust(3, "0")}.{self.file_format}'
+
     def get_filename(self) -> str:
-        self.current_file_index = (self.current_file_index + 1) % 1000
+        while os.path.isfile(self.__get_file_path()):
+            self.current_file_index = (self.current_file_index + 1) % 1000
 
         if not self.current_file_index:
             self.current_file_index += 1
             self.create_dir(self.next_dir())
         
-        return f'{self.directory}/{self.current_path}/{str(self.current_file_index).rjust(3, "0")}.{self.file_format}'
+        return self.__get_file_path()
