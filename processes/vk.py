@@ -70,7 +70,8 @@ def process_data_dict(data: dict) -> VkNewsRead | None:
     if 'text' not in data:
         return
 
-    sentences = text_to_sentences(data['text']).split('\n')
+    sentences = text_to_sentences(data['text']).split('\n') if data['text'] else None
+    content = (' '.join(sentences[1:6]) + ('...' if len(sentences) > 6 else '')) if data['text'] else None
     image_url = None
 
     for content in data['attachments']:
@@ -85,9 +86,8 @@ def process_data_dict(data: dict) -> VkNewsRead | None:
         elif 'sizes' in content:
             image_url = content['sizes'][-1]['url']
 
-    return VkNewsRead(title=sentences[0], image_url=image_url,
-                      link=f'https://vk.com/wall-{os.getenv("VK_GROUP_ID")}_{data["id"]}',
-                      content=(' '.join(sentences[1:6]) + '...' if len(sentences) > 6 else ''))
+    return VkNewsRead(title=sentences[0], image_url=image_url, content=content,
+                      link=f'https://vk.com/wall-{os.getenv("VK_GROUP_ID")}_{data["id"]}')
 
 
 def vk_process(connection: Queue):
