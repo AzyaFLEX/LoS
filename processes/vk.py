@@ -70,9 +70,14 @@ def process_data_dict(data: dict) -> VkNewsRead | None:
     if 'text' not in data:
         return
 
-    sentences = text_to_sentences(data['text']).split('\n') if data['text'] else None
-    content = (' '.join(sentences[1:6]) + ('...' if len(sentences) > 6 else '')) if data['text'] else None
-    image_url = None
+    sentences = text_to_sentences(data['text']).split('\n')
+
+    from_orm_data = {
+        'title': sentences[0] if sentences[0] else None,
+        'content': (' '.join(sentences[1:6]) + ('...' if len(sentences) > 6 else '')) if data['text'] else None,
+        'image_url': None,
+        'link': f'https://vk.com/wall-{os.getenv("VK_GROUP_ID")}_{data["id"]}'
+    }
 
     for content in data['attachments']:
         if content['type'] not in {'photo', 'video', 'link'}:
@@ -80,14 +85,13 @@ def process_data_dict(data: dict) -> VkNewsRead | None:
 
         content = content[content['type']]
         if 'image' in content:
-            image_url = content['first_frame'][-1]['url']
+            from_orm_data['image_url'] = content['first_frame'][-1]['url']
         elif 'photo' in content:
-            image_url = content['photo']['sizes'][-1]['url']
+            from_orm_data['image_url'] = content['photo']['sizes'][-1]['url']
         elif 'sizes' in content:
-            image_url = content['sizes'][-1]['url']
+            from_orm_data['image_url'] = content['sizes'][-1]['url']
 
-    return VkNewsRead(title=sentences[0], image_url=image_url, content=content,
-                      link=f'https://vk.com/wall-{os.getenv("VK_GROUP_ID")}_{data["id"]}')
+    return VkNewsRead.from_orm(from_orm_data)
 
 
 def vk_process(connection: Queue):
