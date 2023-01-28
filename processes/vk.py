@@ -73,10 +73,11 @@ def process_data_dict(data: dict) -> VkNewsRead | None:
     sentences = text_to_sentences(data['text']).split('\n')
 
     class FromOrmData:
-        title = sentences[0] if sentences[0] else None,
-        content = (' '.join(sentences[1:6]) + ('...' if len(sentences) > 6 else '')) if data['text'] else None,
-        image_url = None,
-        link = f'https://vk.com/wall-{os.getenv("VK_GROUP_ID")}_{data["id"]}'
+        def __init__(self):
+            self.title = sentences[0] if sentences[0] else None
+            self.content = (' '.join(sentences[1:6]) + ('...' if len(sentences) > 6 else '')) if data['text'] else None
+            self.image_url = None
+            self.link = f'https://vk.com/wall-{os.getenv("VK_GROUP_ID")}_{data["id"]}'
 
     object_data = FromOrmData()
 
@@ -91,6 +92,10 @@ def process_data_dict(data: dict) -> VkNewsRead | None:
             object_data.image_url = content['photo']['sizes'][-1]['url']
         elif 'sizes' in content:
             object_data.image_url = content['sizes'][-1]['url']
+
+    for attr in object_data.__dict__:
+        if getattr(object_data, attr) is None:
+            delattr(object_data, attr)
 
     return VkNewsRead.from_orm(object_data)
 
