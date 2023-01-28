@@ -72,14 +72,12 @@ def process_data_dict(data: dict) -> VkNewsRead | None:
 
     sentences = text_to_sentences(data['text']).split('\n')
 
-    class FromOrmData:
-        def __init__(self):
-            self.title = sentences[0] if sentences[0] else None
-            self.content = (' '.join(sentences[1:6]) + ('...' if len(sentences) > 6 else '')) if data['text'] else None
-            self.image_url = None
-            self.link = f'https://vk.com/wall-{os.getenv("VK_GROUP_ID")}_{data["id"]}'
-
-    object_data = FromOrmData()
+    output_dict = {
+        'title': sentences[0] if sentences[0] else None,
+        'content': ' '.join(sentences[1:10]) if data['text'] else None,
+        'image_url': None,
+        'link': f'https://vk.com/wall-{os.getenv("VK_GROUP_ID")}_{data["id"]}'
+    }
 
     for content in data['attachments']:
         if content['type'] not in {'photo', 'video', 'link'}:
@@ -87,33 +85,40 @@ def process_data_dict(data: dict) -> VkNewsRead | None:
 
         content = content[content['type']]
         if 'image' in content:
-            object_data.image_url = content['first_frame'][-1]['url']
+            output_dict['image_url'] = content['first_frame'][-1]['url']
         elif 'photo' in content:
-            object_data.image_url = content['photo']['sizes'][-1]['url']
+            output_dict['image_url'] = content['photo']['sizes'][-1]['url']
         elif 'sizes' in content:
-            object_data.image_url = content['sizes'][-1]['url']
+            output_dict['image_url'] = content['sizes'][-1]['url']
 
-    for attr in object_data.__dict__.copy():
-        if getattr(object_data, attr) is None:
-            delattr(object_data, attr)
-
-    return VkNewsRead.from_orm(object_data)
+    return VkNewsRead(**output_dict)
 
 
-def vk_process(connection: Queue):
+def get_base_output_data():
+    output_data = []
+    for dictionary in get_load_vk_data()['items']:
+        output_data += [process_data_dict(dictionary)]
+
+    return output_data
+
+
+def vk_process(connection_send: Queue, connection_get: Queue):
     print('vk_process started')
 
     wait_time = os.getenv('VK_WAIT')
     settings = get_settings()
     data_dict = get_long_poll_data()
 
-    output_data = []
-    for dictionary in get_load_vk_data()['items']:
-        output_data += [process_data_dict(dictionary)]
+    output_data = get_base_output_data()
 
-    connection.put(output_data)
+    connection_send.put(output_data)
 
     while True:
+        if not connection_get.empty():
+            if 'force_update' in connection_get.get():
+                output_data = get_base_output_data()
+                connection_send.put(output_data)
+
         try:
             if settings.VK_PROCESS_DEBUG:
                 data = print_time_log('vk_process', get_long_poll_changes, data_dict, wait_time)
@@ -130,6 +135,7 @@ def vk_process(connection: Queue):
                 else:
                     output_data = [data] + output_data
 
-                connection.put(output_data)
+                print(f'sending data: {output_data}')
+                connection_send.put(output_data)
         except Exception as error:
             print(f'vk_process function error: {error}')

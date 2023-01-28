@@ -1,25 +1,21 @@
 from functools import lru_cache
 from multiprocessing import Queue
 
-import _queue
-
 
 class ProcessesManagerError(Exception): ...
 
 
 class ProcessesManager:
-    VK_PROCESS_QUEUE: Queue = None
+    VK_GET_QUEUE: Queue = Queue()
+    VK_SEND_QUEUE: Queue = Queue()
     VK_DATA: dict = None
 
     def update_vk_data(self):
-        if self.VK_PROCESS_QUEUE is None:
-            raise ProcessesManagerError('miss VK_PROCESS_QUEUE')
+        if not self.VK_GET_QUEUE.empty():
+            self.VK_DATA = self.VK_GET_QUEUE.get(timeout=float('-inf'))
 
-        try:
-            data = self.VK_PROCESS_QUEUE.get(timeout=float('-inf'))
-            self.VK_DATA = data
-        except _queue.Empty:
-            return
+    def forced_update_vk_data(self):
+        self.VK_SEND_QUEUE.put('force_update')
 
 
 @lru_cache

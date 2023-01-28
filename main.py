@@ -7,7 +7,7 @@ from fastapi_pagination import add_pagination
 
 from config import get_settings
 from controllers.user_controller import fastapi_users, auth_backend
-from processes import __all__ as all_processes
+from processes.vk import vk_process
 from processes.processes_manager import get_processes_manager
 from routers import __all__ as routers
 from routers.schemas import UserRead, UserCreate, UserUpdate
@@ -79,13 +79,12 @@ def run_application(settings):
     uvicorn.run(app, **server_data)
 
 
+def run_vk_process(get_queue: Queue, send_queue: Queue):
+    Process(target=vk_process, args=(get_queue, send_queue)).start()
+
+
 if __name__ == '__main__':
-    queue = Queue()
     processes_manager = get_processes_manager()
-    processes_manager.VK_PROCESS_QUEUE = queue
 
-    for process in all_processes:
-        new_process = Process(target=process, args=(queue, ))
-        new_process.start()
-
+    run_vk_process(processes_manager.VK_GET_QUEUE, processes_manager.VK_SEND_QUEUE)
     run_application(get_settings())
