@@ -63,6 +63,8 @@ class VkNewsRead(BaseModel):
     content: Optional[str]
     image_url: Optional[str]
 
+    link: str
+
     class Config:
         orm_mode = True
 
