@@ -59,7 +59,7 @@ class TestSchemeRead(BaseModel):
 
 
 class VkNewsRead(BaseModel):
-    title: str
+    title: Optional[str]
     content: Optional[str]
     image_url: Optional[str]
 
