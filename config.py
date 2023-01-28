@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = Field(default='name error')
     VERSION: str = Field(default='error')
     DEBUG: bool = Field(default=True)
+    VK_PROCESS_DEBUG: bool = Field(default=True)
 
     SECRET: str = Field(default='SECRET')
 

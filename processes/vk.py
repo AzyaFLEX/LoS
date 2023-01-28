@@ -93,7 +93,7 @@ def process_data_dict(data: dict) -> VkNewsRead | None:
         elif 'sizes' in content:
             object_data.image_url = content['sizes'][-1]['url']
 
-    for attr in object_data.__dict__:
+    for attr in object_data.__dict__.copy():
         if getattr(object_data, attr) is None:
             delattr(object_data, attr)
 
@@ -115,7 +115,7 @@ def vk_process(connection: Queue):
 
     while True:
         try:
-            if settings.DEBUG:
+            if settings.VK_PROCESS_DEBUG:
                 data = print_time_log('vk_process', get_long_poll_changes, data_dict, wait_time)
             else:
                 data = get_long_poll_changes(data_dict, wait_time)
@@ -123,6 +123,8 @@ def vk_process(connection: Queue):
             if data == 'update_long_poll_data':
                 data_dict = get_long_poll_data()
             elif data:
+                if settings.VK_PROCESS_DEBUG:
+                    print(data)
                 if len(output_data) == 100:
                     output_data = [data] + output_data[:-1]
                 else:
