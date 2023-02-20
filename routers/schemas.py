@@ -9,6 +9,18 @@ from fastapi_users.schemas import CreateUpdateDictModel
 from pydantic import EmailStr, validator, BaseModel
 
 
+class BaseModelsPostWithFile(BaseModel):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate_to_json
+
+    @classmethod
+    def validate_to_json(cls, value):
+        if isinstance(value, str):
+            return cls(**json.loads(value))
+        return value
+
+
 class UserRead(schemas.BaseUser[uuid.UUID]):
     username: str
 
@@ -125,12 +137,63 @@ class NewsPostScheme(BaseModel):
     title: str
     context: str
 
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate_to_json
 
-    @classmethod
-    def validate_to_json(cls, value):
-        if isinstance(value, str):
-            return cls(**json.loads(value))
-        return value
+class CodeCharacterRead(BaseModel):
+    first_name: str
+    second_name: str
+
+    description: str
+
+    class Config:
+        orm_mode = True
+
+
+class CodeFileRead(BaseModel):
+    id: int
+
+    file_format: str
+
+    class Config:
+        orm_mode = True
+
+
+class CodeCharacterPatch(BaseModel):
+    first_name: Optional[str]
+    second_name: Optional[str]
+
+    description: Optional[str]
+
+
+class CodeFractionGet(BaseModelsPostWithFile):
+    name: str
+
+    description: str
+
+
+class CodeFractionRead(BaseModel):
+    id: int
+    name: str
+
+    description: str
+
+    code_file: Optional[CodeFileRead]
+
+    class Config:
+        orm_mode = True
+
+
+class CodeFractionPatch(BaseModelsPostWithFile):
+    name: Optional[str]
+
+    description: Optional[str]
+
+
+class CodeLocationGet(CodeFractionGet): ...
+class CodeLocationRead(CodeFractionRead): ...
+class CodeLocationPatch(CodeFractionPatch): ...
+class CodeItemGet(CodeFractionGet): ...
+class CodeItemRead(CodeFractionRead): ...
+class CodeItemPatch(CodeFractionPatch): ...
+class CodeDifferentGet(CodeFractionGet): ...
+class CodeDifferentRead(CodeFractionRead): ...
+class CodeDifferentPatch(CodeFractionPatch): ...

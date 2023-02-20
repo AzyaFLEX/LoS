@@ -1,8 +1,9 @@
 from multiprocessing import Process, Queue
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi_pagination import add_pagination
 
 from config import get_settings
@@ -59,6 +60,13 @@ def get_application(settings) -> FastAPI:
 
     for router in routers:
         application.include_router(router)
+
+    @application.exception_handler(ConnectionRefusedError)
+    async def unicorn_exception_handler(request: Request, exc: ConnectionRefusedError):
+        return JSONResponse(
+            status_code=500,
+            content={"message": "miss docker container"},
+        )
 
     add_pagination(application)
 
